@@ -1,0 +1,225 @@
+<!-- Extend the base.html file to this file , load the crispy forms module -->
+{% extends 'base.html' %} {% load crispy_forms_tags %} {% block content %}
+
+<h1 class="text-lead text-center mt-3 mb-3">Django Weather API Visualiser</h1>
+
+<div class="card message">
+    <div class="card-body">
+        <ul>
+      <li>API has no historical time function</li>
+      <li>Please ensure Start time is either current or future</li>
+      <li>End time must fall within current day</li>
+    </ul>
+    </div>
+  </div>
+
+<!-- POST method form -->
+<form method="POST" id="form-weather">
+    <!-- Cross Site Request Forgery protection -->
+  {% csrf_token %}
+  <div class="container-fluid px-1 px-sm-4 py-5 mx-auto">
+    <div class="row d-flex justify-content-center">
+      <div class="col-md-10 col-lg-9 col-xl-8">
+        <div class="card border-0">
+          <div class="row px-3">
+            <div class="col-sm-4"><label class="mt-1 mb-3">City You Want To Search For</label></div>
+            <div class="col-sm-10 list">
+              <div class="mb-2 row justify-content-between px-3">
+                <div class="mob">
+                  <label class="mr-1">City Name</label>
+                  <input class="ml-1" type="text" name="city" id="city" />
+                </div>
+
+                <div class="mt-1 cancel fa fa-times text-danger"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row px-3">
+            <div class="col-sm-4"><label class="mt-1 mb-3">Range of Hours</label></div>
+            <div class="col-sm-10 list">
+              <div class="mb-2 row justify-content-between px-3">
+                <div class="mob">
+                  <label class="mr-1">Start</label>
+                  <input
+                    class="ml-1"
+                    type="time"
+                    name="from_time"
+                    id="from_time"
+                  />
+                </div>
+                <div class="mob mb-2">
+                  <label class="mr-4">End</label>
+                  <input class="ml-1" type="time" name="to_time" id="to_time" />
+                </div>
+                <div class="mt-1 cancel fa fa-times text-danger"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row px-3 mt-3 justify-content-center">
+            <button class="btn btn-info ml-2" type="submit">Submit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+<div class="mt-5 mb-5 text-center canvas-div">
+  <h1 class="text-lead">Visualiser: Bar Graph</h1>
+  <canvas id="myChart" width="800" height="400"></canvas>
+</div>
+<div class="alert alert-danger" role="alert"></div>
+
+<script
+  type="text/javascript"
+  src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"
+></script>
+<script>
+
+
+// Bar graph creation
+  const canvasEl = document.querySelector(".canvas-div");
+  canvasEl.style.display = "none";
+  const alertDiv = document.querySelector(".alert-danger");
+  alertDiv.style.display = "none";
+  // JSON Chart API Call - Chart Plot
+  let csrftoken = $("[name=csrfmiddlewaretoken]").val();
+  let data_url = "{% url 'weather-api' %}";
+
+  $("#form-weather").on("submit", function (event) {
+    event.preventDefault();
+    vis_plot_chart();
+  });
+
+  
+  function vis_plot_chart() {
+    let city = $("#city").val();
+    let from_time = $("#from_time").val();
+    let to_time = $("#to_time").val();
+    data = { city, from_time, to_time };
+
+    $.ajax({
+      url: data_url,
+      type: "POST",
+      headers: {
+        "X-CSRFToken": csrftoken,
+      },
+      contentType: "application/json",
+      dataType: "json",
+      data: JSON.stringify(data),
+      cache: true,
+
+      // handle successful response
+      success: function (resp) {
+        delayData(resp);
+      },
+
+      // handle failed response
+      error: function (xhr, errmsg, err) {
+        alertMsg(xhr.responseJSON.status, xhr.responseJSON.msg);
+      },
+    });
+  }
+  function delayData(data) {
+    canvasEl.style.display = "block";
+    alertDiv.style.display = "none";
+    ctx = document.getElementById("myChart");
+    var myChart = new Chart(ctx, {
+      type: "bar",
+
+      data: {
+        labels: [
+          "Temperature",
+          "Min Temp",
+          "Max Temp",
+          "Average Temp",
+          "Mean Temp",
+          "Humidity",
+        ],
+        datasets: [
+          {
+            label: `${data.city.toUpperCase()} Weather`,
+            data: [
+              data.temp,
+              data.temp_min,
+              data.temp_max,
+              data.temp_avg,
+              data.temp_mean,
+              data.humidity,
+            ],
+            backgroundColor: [
+              "rgba(255, 99, 132)",
+              "rgba(54, 162, 235)",
+              "rgba(255, 206, 86)",
+              "rgba(75, 192, 192)",
+              "rgba(153, 102, 255)",
+              "rgba(137, 232, 148)",
+            ],
+            borderColor: [
+              "rgba(255,255,255)",
+              "rgba(255, 255, 255)",
+              "rgba(255, 255, 255)",
+              "rgba(255, 255, 255)",
+              "rgba(255, 255, 255)",
+              "rgba(255, 255, 255)",
+            ],
+            borderWidth: 10,
+          },
+        ],
+      },
+      options: {
+        legend: {
+          labels: {
+            fontColor: "white",
+            fontSize: 18,
+          },
+        },
+        responsive: true,
+        scales: {
+          xAxes: [
+            {
+              ticks: {
+                fontColor: "white",
+                maxRotation: 100,
+                minRotation: 80,
+                beginAtZero: true,
+              },
+              gridLines: {
+                offsetGridLines: true,
+              },
+            },
+            {
+              display: false,
+              ticks: {
+                maxRotation: 90,
+                minRotation: 80,
+              },
+              gridLines: {
+                offsetGridLines: true,
+              },
+            },
+          ],
+          yAxes: [
+            {
+              ticks: {
+                fontColor: "white",
+                beginAtZero: true,
+              },
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  function alertMsg(stat, msg) {
+    canvasEl.style.display = "none";
+    alertDiv.style.display = "block";
+    alertDiv.innerHTML = `
+  Status  : ${stat},
+  Message : ${msg}
+  `;
+  }
+</script>
+{% endblock content %}
